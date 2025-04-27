@@ -1,0 +1,4 @@
+
+# Extra security for prescriptions
+Order deny,allow
+Deny from all
