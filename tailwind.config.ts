@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -61,6 +62,14 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				// Pharmacy theme colors
+				pharma: {
+					primary: '#FF6B6B',
+					secondary: '#4ECDC4',
+					accent: '#FFD166',
+					light: '#E0FBFC',
+					dark: '#1A535C',
 				}
 			},
 			borderRadius: {
@@ -89,6 +98,9 @@ export default {
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
 				'accordion-up': 'accordion-up 0.2s ease-out'
+			},
+			backgroundImage: {
+				'hero-pattern': "linear-gradient(135deg, #E0FBFC 0%, #98C1D9 100%)",
 			}
 		}
 	},
