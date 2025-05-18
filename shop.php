@@ -130,7 +130,15 @@ if ($categories_result->num_rows > 0) {
                                 <?php foreach ($products as $product): ?>
                                     <div class="product-card">
                                         <div class="product-image">
-                                            <img src="<?php echo !empty($product['image']) ? $product['image'] : 'images/placeholder.jpg'; ?>" alt="<?php echo $product['name']; ?>">
+                                            <?php 
+                                            // Fixed image display
+                                            $imagePath = !empty($product['image']) ? $product['image'] : 'images/placeholder.jpg';
+                                            // Ensure the image exists
+                                            if (!file_exists($imagePath) && !filter_var($imagePath, FILTER_VALIDATE_URL)) {
+                                                $imagePath = 'images/placeholder.jpg';
+                                            }
+                                            ?>
+                                            <img src="<?php echo $imagePath; ?>" alt="<?php echo $product['name']; ?>">
                                             <?php if (isLoggedIn()): ?>
                                                 <button class="wishlist-btn" data-id="<?php echo $product['id']; ?>">❤</button>
                                             <?php endif; ?>
@@ -141,7 +149,10 @@ if ($categories_result->num_rows > 0) {
                                         <div class="product-info">
                                             <h3 class="product-name"><?php echo htmlspecialchars($product['name']); ?></h3>
                                             <p class="product-price">$<?php echo number_format($product['price'], 2); ?></p>
-                                            <a href="product.php?id=<?php echo $product['id']; ?>" class="btn btn-primary btn-sm">View Details</a>
+                                            <div class="product-actions">
+                                                <a href="product.php?id=<?php echo $product['id']; ?>" class="btn btn-primary btn-sm">View Details</a>
+                                                <a href="cart.php?action=add&id=<?php echo $product['id']; ?>" class="btn btn-ghost btn-sm">Add to Cart</a>
+                                            </div>
                                         </div>
                                     </div>
                                 <?php endforeach; ?>
@@ -273,6 +284,12 @@ if ($categories_result->num_rows > 0) {
         .no-products p {
             margin-bottom: 1rem;
             color: var(--gray-color);
+        }
+        
+        .product-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
         }
         
         @media (max-width: 991px) {

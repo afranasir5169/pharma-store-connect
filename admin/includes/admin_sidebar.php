@@ -1,31 +1,41 @@
 
-<aside class="admin-sidebar">
+<aside class="admin-sidebar" id="admin-sidebar">
     <div class="admin-sidebar-header">
-        <a href="index.php">
-            <span>PharmaCare</span> Admin
-        </a>
+        <h3>Admin Panel</h3>
     </div>
     
-    <nav class="admin-menu">
-        <a href="index.php" class="admin-menu-item <?php echo basename($_SERVER['PHP_SELF']) == 'index.php' ? 'active' : ''; ?>">
-            <div class="admin-menu-icon">🏠</div>
-            <span>Dashboard</span>
-        </a>
-        <a href="orders.php" class="admin-menu-item <?php echo basename($_SERVER['PHP_SELF']) == 'orders.php' ? 'active' : ''; ?>">
-            <div class="admin-menu-icon">📦</div>
-            <span>Orders</span>
-        </a>
-        <a href="products.php" class="admin-menu-item <?php echo basename($_SERVER['PHP_SELF']) == 'products.php' ? 'active' : ''; ?>">
-            <div class="admin-menu-icon">🛒</div>
-            <span>Products</span>
-        </a>
-        <a href="users.php" class="admin-menu-item <?php echo basename($_SERVER['PHP_SELF']) == 'users.php' ? 'active' : ''; ?>">
-            <div class="admin-menu-icon">👥</div>
-            <span>Users</span>
-        </a>
-        <a href="../logout.php" class="admin-menu-item">
-            <div class="admin-menu-icon">🚪</div>
-            <span>Logout</span>
-        </a>
+    <nav class="admin-sidebar-nav">
+        <ul>
+            <li>
+                <a href="index.php" class="<?php echo basename($_SERVER['SCRIPT_FILENAME']) == 'index.php' ? 'active' : ''; ?>">
+                    <span class="icon">📊</span>
+                    <span>Dashboard</span>
+                </a>
+            </li>
+            <li>
+                <a href="products.php" class="<?php echo basename($_SERVER['SCRIPT_FILENAME']) == 'products.php' || basename($_SERVER['SCRIPT_FILENAME']) == 'add_product.php' || basename($_SERVER['SCRIPT_FILENAME']) == 'edit_product.php' ? 'active' : ''; ?>">
+                    <span class="icon">📦</span>
+                    <span>Products</span>
+                </a>
+            </li>
+            <li>
+                <a href="categories.php" class="<?php echo basename($_SERVER['SCRIPT_FILENAME']) == 'categories.php' ? 'active' : ''; ?>">
+                    <span class="icon">📑</span>
+                    <span>Categories</span>
+                </a>
+            </li>
+            <li>
+                <a href="orders.php" class="<?php echo basename($_SERVER['SCRIPT_FILENAME']) == 'orders.php' || basename($_SERVER['SCRIPT_FILENAME']) == 'order_details.php' ? 'active' : ''; ?>">
+                    <span class="icon">🛒</span>
+                    <span>Orders</span>
+                </a>
+            </li>
+            <li>
+                <a href="users.php" class="<?php echo basename($_SERVER['SCRIPT_FILENAME']) == 'users.php' ? 'active' : ''; ?>">
+                    <span class="icon">👥</span>
+                    <span>Users</span>
+                </a>
+            </li>
+        </ul>
     </nav>
 </aside>

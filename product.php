@@ -152,7 +152,15 @@ if (isLoggedIn()) {
                 
                 <div class="product-detail">
                     <div class="product-detail-image">
-                        <img src="<?php echo !empty($product['image']) ? $product['image'] : 'images/placeholder.jpg'; ?>" alt="<?php echo htmlspecialchars($product['name']); ?>">
+                        <?php 
+                        // Fixed image path display
+                        $imagePath = !empty($product['image']) ? $product['image'] : 'images/placeholder.jpg';
+                        // Ensure the image exists
+                        if (!file_exists($imagePath) && !filter_var($imagePath, FILTER_VALIDATE_URL)) {
+                            $imagePath = 'images/placeholder.jpg';
+                        }
+                        ?>
+                        <img src="<?php echo $imagePath; ?>" alt="<?php echo htmlspecialchars($product['name']); ?>">
                         <?php if ($product['requires_prescription']): ?>
                             <span class="prescription-badge">Prescription Required</span>
                         <?php endif; ?>

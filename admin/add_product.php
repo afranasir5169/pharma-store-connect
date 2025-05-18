@@ -8,25 +8,35 @@ if (!isAdmin()) {
     redirect('../login.php');
 }
 
-$error = '';
-$success = '';
+// Get categories
+$categories_sql = "SELECT * FROM categories ORDER BY name ASC";
+$categories_result = $conn->query($categories_sql);
+$categories = [];
 
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $name = $_POST['name'] ?? '';
-    $description = $_POST['description'] ?? '';
-    $price = $_POST['price'] ?? '';
-    $category = $_POST['category'] ?? '';
-    $stock = $_POST['stock'] ?? 0;
+if ($categories_result && $categories_result->num_rows > 0) {
+    while ($row = $categories_result->fetch_assoc()) {
+        $categories[] = $row;
+    }
+}
+
+// Handle form submission
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $name = trim($_POST['name']);
+    $description = trim($_POST['description']);
+    $price = floatval($_POST['price']);
+    $category = trim($_POST['category']);
+    $stock = intval($_POST['stock']);
     $requires_prescription = isset($_POST['requires_prescription']) ? 1 : 0;
     
-    if (empty($name) || empty($price)) {
-        $error = 'Product name and price are required.';
+    // Validate required fields
+    if (empty($name) || $price <= 0) {
+        showAlert('Name and price are required. Price must be greater than zero.', 'danger');
     } else {
-        $image_path = '';
-        
         // Handle image upload
+        $image_path = ''; // Default to empty (placeholder will be used)
+        
         if (isset($_FILES['image']) && $_FILES['image']['error'] == 0) {
-            $target_dir = "../uploads/";
+            $target_dir = "../uploads/products/";
             
             // Create directory if it doesn't exist
             if (!file_exists($target_dir)) {
@@ -41,27 +51,21 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 $target_file = $target_dir . $new_filename;
                 
                 if (move_uploaded_file($_FILES['image']['tmp_name'], $target_file)) {
-                    $image_path = 'uploads/' . $new_filename;
-                } else {
-                    $error = 'Failed to upload image.';
+                    $image_path = 'uploads/products/' . $new_filename;
                 }
-            } else {
-                $error = 'Invalid file type. Only JPG, JPEG, PNG and GIF are allowed.';
             }
         }
         
-        if (empty($error)) {
-            $sql = "INSERT INTO products (name, description, price, image, category, stock, requires_prescription) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?)";
-            $stmt = $conn->prepare($sql);
-            $stmt->bind_param("ssdssis", $name, $description, $price, $image_path, $category, $stock, $requires_prescription);
-            
-            if ($stmt->execute()) {
-                showAlert('Product added successfully!', 'success');
-                redirect('products.php');
-            } else {
-                $error = 'Failed to add product: ' . $conn->error;
-            }
+        // Insert product
+        $insert_sql = "INSERT INTO products (name, description, price, image, category, stock, requires_prescription) VALUES (?, ?, ?, ?, ?, ?, ?)";
+        $insert_stmt = $conn->prepare($insert_sql);
+        $insert_stmt->bind_param("ssdssii", $name, $description, $price, $image_path, $category, $stock, $requires_prescription);
+        
+        if ($insert_stmt->execute()) {
+            showAlert('Product added successfully!', 'success');
+            redirect('products.php');
+        } else {
+            showAlert('Failed to add product.', 'danger');
         }
     }
 }
@@ -90,72 +94,63 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 </div>
             </div>
             
-            <?php if (!empty($error)): ?>
-                <div class="alert alert-danger"><?php echo $error; ?></div>
-            <?php endif; ?>
+            <?php displayAlert(); ?>
             
-            <?php if (!empty($success)): ?>
-                <div class="alert alert-success"><?php echo $success; ?></div>
-            <?php endif; ?>
-            
-            <form class="admin-form" method="post" enctype="multipart/form-data">
-                <div class="form-row">
-                    <div class="form-col">
+            <div class="admin-form-card">
+                <form method="post" enctype="multipart/form-data">
+                    <div class="form-grid">
                         <div class="form-group">
-                            <label for="name">Product Name *</label>
+                            <label for="name">Product Name</label>
                             <input type="text" id="name" name="name" required>
                         </div>
-                    </div>
-                    <div class="form-col">
+                        
+                        <div class="form-group">
+                            <label for="price">Price ($)</label>
+                            <input type="number" id="price" name="price" step="0.01" min="0" required>
+                        </div>
+                        
                         <div class="form-group">
                             <label for="category">Category</label>
                             <select id="category" name="category">
-                                <option value="Prescription Medicines">Prescription Medicines</option>
-                                <option value="Over-the-Counter">Over-the-Counter</option>
-                                <option value="Health Supplements">Health Supplements</option>
-                                <option value="Personal Care">Personal Care</option>
-                                <option value="First Aid">First Aid</option>
+                                <?php if (count($categories) > 0): ?>
+                                    <?php foreach ($categories as $category): ?>
+                                        <option value="<?php echo htmlspecialchars($category['name']); ?>">
+                                            <?php echo htmlspecialchars($category['name']); ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                <?php else: ?>
+                                    <option value="General">General</option>
+                                <?php endif; ?>
                             </select>
                         </div>
-                    </div>
-                </div>
-                
-                <div class="form-group">
-                    <label for="description">Description</label>
-                    <textarea id="description" name="description"></textarea>
-                </div>
-                
-                <div class="form-row">
-                    <div class="form-col">
+                        
                         <div class="form-group">
-                            <label for="price">Price ($) *</label>
-                            <input type="number" id="price" name="price" step="0.01" min="0" required>
-                        </div>
-                    </div>
-                    <div class="form-col">
-                        <div class="form-group">
-                            <label for="stock">Stock Quantity</label>
+                            <label for="stock">Stock</label>
                             <input type="number" id="stock" name="stock" min="0" value="0">
                         </div>
                     </div>
-                </div>
-                
-                <div class="form-group">
-                    <label for="image">Product Image</label>
-                    <input type="file" id="image" name="image">
-                </div>
-                
-                <div class="form-group">
-                    <label class="checkbox-label">
-                        <input type="checkbox" name="requires_prescription">
-                        Requires Prescription
-                    </label>
-                </div>
-                
-                <div class="form-group">
-                    <button type="submit" class="btn btn-primary">Add Product</button>
-                </div>
-            </form>
+                    
+                    <div class="form-group">
+                        <label for="description">Description</label>
+                        <textarea id="description" name="description" rows="6"></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="image">Product Image</label>
+                        <input type="file" id="image" name="image" accept="image/*">
+                    </div>
+                    
+                    <div class="form-group checkbox-group">
+                        <input type="checkbox" id="requires_prescription" name="requires_prescription">
+                        <label for="requires_prescription">Requires Prescription</label>
+                    </div>
+                    
+                    <div class="form-buttons">
+                        <button type="submit" class="btn btn-primary">Add Product</button>
+                        <a href="products.php" class="btn btn-ghost">Cancel</a>
+                    </div>
+                </form>
+            </div>
         </main>
     </div>
     

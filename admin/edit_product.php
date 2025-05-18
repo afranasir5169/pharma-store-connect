@@ -8,7 +8,9 @@ if (!isAdmin()) {
     redirect('../login.php');
 }
 
+// Check if product ID is provided
 if (!isset($_GET['id']) || empty($_GET['id'])) {
+    showAlert('Product ID is required.', 'danger');
     redirect('products.php');
 }
 
@@ -28,25 +30,35 @@ if ($product_result->num_rows == 0) {
 
 $product = $product_result->fetch_assoc();
 
-$error = '';
-$success = '';
+// Get categories
+$categories_sql = "SELECT * FROM categories ORDER BY name ASC";
+$categories_result = $conn->query($categories_sql);
+$categories = [];
 
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $name = $_POST['name'] ?? '';
-    $description = $_POST['description'] ?? '';
-    $price = $_POST['price'] ?? '';
-    $category = $_POST['category'] ?? '';
-    $stock = $_POST['stock'] ?? 0;
+if ($categories_result && $categories_result->num_rows > 0) {
+    while ($row = $categories_result->fetch_assoc()) {
+        $categories[] = $row;
+    }
+}
+
+// Handle form submission
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $name = trim($_POST['name']);
+    $description = trim($_POST['description']);
+    $price = floatval($_POST['price']);
+    $category = trim($_POST['category']);
+    $stock = intval($_POST['stock']);
     $requires_prescription = isset($_POST['requires_prescription']) ? 1 : 0;
     
-    if (empty($name) || empty($price)) {
-        $error = 'Product name and price are required.';
+    // Validate required fields
+    if (empty($name) || $price <= 0) {
+        showAlert('Name and price are required. Price must be greater than zero.', 'danger');
     } else {
-        $image_path = $product['image'];
+        // Handle image upload
+        $image_path = $product['image']; // Default to existing image
         
-        // Handle image upload if a new image is provided
         if (isset($_FILES['image']) && $_FILES['image']['error'] == 0) {
-            $target_dir = "../uploads/";
+            $target_dir = "../uploads/products/";
             
             // Create directory if it doesn't exist
             if (!file_exists($target_dir)) {
@@ -61,36 +73,21 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 $target_file = $target_dir . $new_filename;
                 
                 if (move_uploaded_file($_FILES['image']['tmp_name'], $target_file)) {
-                    // Delete old image if it exists
-                    if (!empty($product['image']) && file_exists('../' . $product['image'])) {
-                        unlink('../' . $product['image']);
-                    }
-                    
-                    $image_path = 'uploads/' . $new_filename;
-                } else {
-                    $error = 'Failed to upload image.';
+                    $image_path = 'uploads/products/' . $new_filename;
                 }
-            } else {
-                $error = 'Invalid file type. Only JPG, JPEG, PNG and GIF are allowed.';
             }
         }
         
-        if (empty($error)) {
-            $sql = "UPDATE products 
-                   SET name = ?, description = ?, price = ?, image = ?, category = ?, stock = ?, requires_prescription = ? 
-                   WHERE id = ?";
-            $stmt = $conn->prepare($sql);
-            $stmt->bind_param("ssdssiis", $name, $description, $price, $image_path, $category, $stock, $requires_prescription, $product_id);
-            
-            if ($stmt->execute()) {
-                showAlert('Product updated successfully!', 'success');
-                
-                // Refresh product data after update
-                $product_stmt->execute();
-                $product = $product_stmt->get_result()->fetch_assoc();
-            } else {
-                $error = 'Failed to update product: ' . $conn->error;
-            }
+        // Update product
+        $update_sql = "UPDATE products SET name = ?, description = ?, price = ?, image = ?, category = ?, stock = ?, requires_prescription = ? WHERE id = ?";
+        $update_stmt = $conn->prepare($update_sql);
+        $update_stmt->bind_param("ssdssiis", $name, $description, $price, $image_path, $category, $stock, $requires_prescription, $product_id);
+        
+        if ($update_stmt->execute()) {
+            showAlert('Product updated successfully!', 'success');
+            redirect('products.php');
+        } else {
+            showAlert('Failed to update product.', 'danger');
         }
     }
 }
@@ -119,104 +116,73 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 </div>
             </div>
             
-            <?php if (!empty($error)): ?>
-                <div class="alert alert-danger"><?php echo $error; ?></div>
-            <?php endif; ?>
-            
-            <?php if (!empty($success)): ?>
-                <div class="alert alert-success"><?php echo $success; ?></div>
-            <?php endif; ?>
-            
             <?php displayAlert(); ?>
             
-            <form class="admin-form" method="post" enctype="multipart/form-data">
-                <div class="form-row">
-                    <div class="form-col">
+            <div class="admin-form-card">
+                <form method="post" enctype="multipart/form-data">
+                    <div class="form-grid">
                         <div class="form-group">
-                            <label for="name">Product Name *</label>
+                            <label for="name">Product Name</label>
                             <input type="text" id="name" name="name" value="<?php echo htmlspecialchars($product['name']); ?>" required>
                         </div>
-                    </div>
-                    <div class="form-col">
+                        
+                        <div class="form-group">
+                            <label for="price">Price ($)</label>
+                            <input type="number" id="price" name="price" step="0.01" min="0" value="<?php echo htmlspecialchars($product['price']); ?>" required>
+                        </div>
+                        
                         <div class="form-group">
                             <label for="category">Category</label>
                             <select id="category" name="category">
-                                <option value="Prescription Medicines" <?php echo $product['category'] == 'Prescription Medicines' ? 'selected' : ''; ?>>Prescription Medicines</option>
-                                <option value="Over-the-Counter" <?php echo $product['category'] == 'Over-the-Counter' ? 'selected' : ''; ?>>Over-the-Counter</option>
-                                <option value="Health Supplements" <?php echo $product['category'] == 'Health Supplements' ? 'selected' : ''; ?>>Health Supplements</option>
-                                <option value="Personal Care" <?php echo $product['category'] == 'Personal Care' ? 'selected' : ''; ?>>Personal Care</option>
-                                <option value="First Aid" <?php echo $product['category'] == 'First Aid' ? 'selected' : ''; ?>>First Aid</option>
+                                <?php if (count($categories) > 0): ?>
+                                    <?php foreach ($categories as $category): ?>
+                                        <option value="<?php echo htmlspecialchars($category['name']); ?>" <?php echo $product['category'] == $category['name'] ? 'selected' : ''; ?>>
+                                            <?php echo htmlspecialchars($category['name']); ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                <?php else: ?>
+                                    <option value="General">General</option>
+                                <?php endif; ?>
                             </select>
                         </div>
-                    </div>
-                </div>
-                
-                <div class="form-group">
-                    <label for="description">Description</label>
-                    <textarea id="description" name="description"><?php echo htmlspecialchars($product['description']); ?></textarea>
-                </div>
-                
-                <div class="form-row">
-                    <div class="form-col">
+                        
                         <div class="form-group">
-                            <label for="price">Price ($) *</label>
-                            <input type="number" id="price" name="price" step="0.01" min="0" value="<?php echo $product['price']; ?>" required>
+                            <label for="stock">Stock</label>
+                            <input type="number" id="stock" name="stock" min="0" value="<?php echo htmlspecialchars($product['stock']); ?>">
                         </div>
                     </div>
-                    <div class="form-col">
-                        <div class="form-group">
-                            <label for="stock">Stock Quantity</label>
-                            <input type="number" id="stock" name="stock" min="0" value="<?php echo $product['stock']; ?>">
-                        </div>
+                    
+                    <div class="form-group">
+                        <label for="description">Description</label>
+                        <textarea id="description" name="description" rows="6"><?php echo htmlspecialchars($product['description']); ?></textarea>
                     </div>
-                </div>
-                
-                <div class="form-group">
-                    <label for="image">Product Image</label>
-                    <?php if (!empty($product['image']) && file_exists('../' . $product['image'])): ?>
-                        <div class="current-image">
-                            <img src="../<?php echo $product['image']; ?>" alt="Current Image" width="150">
-                            <p>Current image. Upload a new one to replace it.</p>
-                        </div>
-                    <?php endif; ?>
-                    <input type="file" id="image" name="image">
-                </div>
-                
-                <div class="form-group">
-                    <label class="checkbox-label">
-                        <input type="checkbox" name="requires_prescription" <?php echo $product['requires_prescription'] ? 'checked' : ''; ?>>
-                        Requires Prescription
-                    </label>
-                </div>
-                
-                <div class="form-group">
-                    <button type="submit" class="btn btn-primary">Update Product</button>
-                </div>
-            </form>
+                    
+                    <div class="form-group">
+                        <label for="image">Product Image</label>
+                        <?php if (!empty($product['image']) && file_exists('../' . $product['image'])): ?>
+                            <div class="current-image">
+                                <img src="../<?php echo htmlspecialchars($product['image']); ?>" alt="Current product image" width="100">
+                                <p>Current image</p>
+                            </div>
+                        <?php endif; ?>
+                        <input type="file" id="image" name="image" accept="image/*">
+                        <p class="form-note">Leave empty to keep the current image.</p>
+                    </div>
+                    
+                    <div class="form-group checkbox-group">
+                        <input type="checkbox" id="requires_prescription" name="requires_prescription" <?php echo $product['requires_prescription'] ? 'checked' : ''; ?>>
+                        <label for="requires_prescription">Requires Prescription</label>
+                    </div>
+                    
+                    <div class="form-buttons">
+                        <button type="submit" class="btn btn-primary">Update Product</button>
+                        <a href="products.php" class="btn btn-ghost">Cancel</a>
+                    </div>
+                </form>
+            </div>
         </main>
     </div>
     
     <script src="../js/admin.js"></script>
-    
-    <style>
-        .current-image {
-            margin-bottom: 1rem;
-            padding: 1rem;
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-            background-color: rgba(0, 0, 0, 0.02);
-        }
-        
-        .current-image img {
-            display: block;
-            margin-bottom: 0.5rem;
-        }
-        
-        .current-image p {
-            font-size: 0.9rem;
-            color: var(--gray-color);
-            margin: 0;
-        }
-    </style>
 </body>
 </html>
